@@ -106,6 +106,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       query: typeof MessagesQuery.Type
     }) {
       if (ctx.query.before && ctx.query.limit === undefined) return yield* new HttpApiError.BadRequest({})
+      if (ctx.query.before && ctx.query.after) return yield* new HttpApiError.BadRequest({})
       for (const input of [ctx.query.before, ctx.query.after].filter((value): value is string => value !== undefined)) {
         yield* Effect.try({
           try: () => MessageV2.cursor.decode(input),
