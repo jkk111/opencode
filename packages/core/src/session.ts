@@ -118,7 +118,6 @@ export interface Interface {
     sessionID: SessionSchema.ID
     limit?: number
     order?: "asc" | "desc"
-    after?: SessionMessage.ID
     cursor?: {
       id: SessionMessage.ID
       direction: "previous" | "next"
@@ -307,7 +306,7 @@ export const layer = Layer.effect(
         const direction = input.cursor?.direction ?? "next"
         const requestedOrder = input.order ?? "desc"
         const order = direction === "previous" ? (requestedOrder === "asc" ? "desc" : "asc") : requestedOrder
-        const cursorAnchor = input.cursor
+        const anchor = input.cursor
           ? yield* db
               .select({ seq: SessionMessageTable.seq })
               .from(SessionMessageTable)
@@ -317,26 +316,15 @@ export const layer = Layer.effect(
               .get()
               .pipe(Effect.orDie)
           : undefined
-        const afterAnchor = input.after
-          ? yield* db
-              .select({ seq: SessionMessageTable.seq })
-              .from(SessionMessageTable)
-              .where(and(eq(SessionMessageTable.session_id, input.sessionID), eq(SessionMessageTable.id, input.after)))
-              .get()
-              .pipe(Effect.orDie)
+        if (input.cursor && !anchor) return []
+        const boundary = anchor
+          ? order === "asc"
+            ? gt(SessionMessageTable.seq, anchor.seq)
+            : lt(SessionMessageTable.seq, anchor.seq)
           : undefined
-        if ((input.cursor && !cursorAnchor) || (input.after && !afterAnchor)) return []
-        const cursorBoundary =
-          input.cursor && cursorAnchor
-            ? order === "asc"
-              ? gt(SessionMessageTable.seq, cursorAnchor.seq)
-              : lt(SessionMessageTable.seq, cursorAnchor.seq)
-            : undefined
-        const afterBoundary = input.after && afterAnchor ? gt(SessionMessageTable.seq, afterAnchor.seq) : undefined
-        const where =
-          cursorBoundary || afterBoundary
-            ? and(eq(SessionMessageTable.session_id, input.sessionID), cursorBoundary, afterBoundary)
-            : eq(SessionMessageTable.session_id, input.sessionID)
+        const where = boundary
+          ? and(eq(SessionMessageTable.session_id, input.sessionID), boundary)
+          : eq(SessionMessageTable.session_id, input.sessionID)
         const query = db
           .select()
           .from(SessionMessageTable)

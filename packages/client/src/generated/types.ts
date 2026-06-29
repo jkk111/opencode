@@ -1759,26 +1759,17 @@ export type MessagesListInput = {
     readonly limit?: number | undefined
     readonly order?: "asc" | "desc" | undefined
     readonly cursor?: string | undefined
-    readonly after?: string | undefined
   }["limit"]
   readonly order?: {
     readonly limit?: number | undefined
     readonly order?: "asc" | "desc" | undefined
     readonly cursor?: string | undefined
-    readonly after?: string | undefined
   }["order"]
   readonly cursor?: {
     readonly limit?: number | undefined
     readonly order?: "asc" | "desc" | undefined
     readonly cursor?: string | undefined
-    readonly after?: string | undefined
   }["cursor"]
-  readonly after?: {
-    readonly limit?: number | undefined
-    readonly order?: "asc" | "desc" | undefined
-    readonly cursor?: string | undefined
-    readonly after?: string | undefined
-  }["after"]
 }
 
 export type MessagesListOutput = {

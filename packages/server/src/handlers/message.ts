@@ -33,14 +33,8 @@ export const MessageHandler = HttpApiBuilder.group(Api, "server.message", (handl
       Effect.fn(function* (ctx) {
         if (ctx.query.cursor && ctx.query.order !== undefined)
           return yield* new InvalidCursorError({ message: "Cursor cannot be combined with order" })
-        if (ctx.query.cursor && ctx.query.after !== undefined)
-          return yield* new InvalidCursorError({ message: "Cursor cannot be combined with after" })
         const decoded = yield* Effect.try({
           try: () => (ctx.query.cursor ? cursor.decode(ctx.query.cursor) : undefined),
-          catch: () => new InvalidCursorError({ message: "Invalid cursor" }),
-        })
-        const after = yield* Effect.try({
-          try: () => (ctx.query.after ? cursor.decode(ctx.query.after) : undefined),
           catch: () => new InvalidCursorError({ message: "Invalid cursor" }),
         })
         const order = decoded?.order ?? ctx.query.order ?? "desc"
@@ -49,7 +43,6 @@ export const MessageHandler = HttpApiBuilder.group(Api, "server.message", (handl
             sessionID: ctx.params.sessionID,
             limit: ctx.query.limit ?? DefaultMessagesLimit,
             order,
-            after: after?.id,
             cursor: decoded ? { id: decoded.id, direction: decoded.direction } : undefined,
           })
           .pipe(

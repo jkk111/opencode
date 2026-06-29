@@ -19,9 +19,6 @@ export const SessionMessagesQuery = Schema.Struct({
         "Opaque pagination cursor returned as cursor.previous or cursor.next in the previous response. Do not combine with order.",
     }),
   ),
-  after: Schema.optional(Schema.String).annotate({
-    description: "Only return messages after this server-generated cursor. Do not combine with cursor.",
-  }),
 }).annotate({ identifier: "SessionMessagesQuery" })
 
 export const MessageGroup = HttpApiGroup.make("server.message")
