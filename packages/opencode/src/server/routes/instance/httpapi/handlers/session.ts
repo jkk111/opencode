@@ -106,6 +106,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       query: typeof MessagesQuery.Type
     }) {
       if (ctx.query.before && ctx.query.limit === undefined) return yield* new HttpApiError.BadRequest({})
+      if (ctx.query.before && ctx.query.after) return yield* new HttpApiError.BadRequest({})
       if (ctx.query.before) {
         const before = ctx.query.before
         yield* Effect.try({
@@ -115,7 +116,9 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       }
       yield* requireSession(ctx.params.sessionID)
       if (ctx.query.limit === undefined || ctx.query.limit === 0) {
-        return yield* SessionError.mapStorageNotFound(session.messages({ sessionID: ctx.params.sessionID }))
+        return yield* SessionError.mapStorageNotFound(
+          session.messages({ sessionID: ctx.params.sessionID, after: ctx.query.after }),
+        )
       }
 
       const page = yield* SessionError.mapStorageNotFound(
@@ -123,6 +126,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           sessionID: ctx.params.sessionID,
           limit: ctx.query.limit,
           before: ctx.query.before,
+          after: ctx.query.after,
         }),
       )
       if (!page.cursor) return page.items

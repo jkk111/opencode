@@ -25,6 +25,7 @@ import { and } from "drizzle-orm"
 import { desc } from "drizzle-orm"
 import { eq } from "drizzle-orm"
 import { inArray } from "drizzle-orm"
+import { gt } from "drizzle-orm"
 import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
 import { MessageTable, PartTable, SessionTable } from "@opencode-ai/core/session/sql"
@@ -94,6 +95,8 @@ const part = (row: typeof PartTable.$inferSelect) =>
 
 const older = (row: Cursor) =>
   or(lt(MessageTable.time_created, row.time), and(eq(MessageTable.time_created, row.time), lt(MessageTable.id, row.id)))
+const newer = (row: Cursor) =>
+  or(gt(MessageTable.time_created, row.time), and(eq(MessageTable.time_created, row.time), gt(MessageTable.id, row.id)))
 
 function hydrate(db: Database.Interface["db"], rows: (typeof MessageTable.$inferSelect)[]) {
   const ids = rows.map((row) => row.id)
@@ -426,12 +429,26 @@ export const page = Effect.fn("MessageV2.page")(function* (input: {
   sessionID: SessionID
   limit: number
   before?: string
+  after?: MessageID
 }) {
   const { db } = yield* Database.Service
   const before = input.before ? cursor.decode(input.before) : undefined
-  const where = before
-    ? and(eq(MessageTable.session_id, input.sessionID), older(before))
-    : eq(MessageTable.session_id, input.sessionID)
+  const after = input.after
+    ? yield* db
+        .select({ id: MessageTable.id, time: MessageTable.time_created })
+        .from(MessageTable)
+        .where(and(eq(MessageTable.session_id, input.sessionID), eq(MessageTable.id, input.after)))
+        .get()
+        .pipe(Effect.orDie)
+    : undefined
+  const where =
+    input.after && !after
+      ? and(eq(MessageTable.session_id, input.sessionID), eq(MessageTable.id, input.after))
+      : and(
+          eq(MessageTable.session_id, input.sessionID),
+          before ? older(before) : undefined,
+          after ? newer(after) : undefined,
+        )
   const rows = yield* db
     .select()
     .from(MessageTable)

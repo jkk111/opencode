@@ -563,6 +563,20 @@ describe("Session.messages", () => {
     ),
   )
 
+  it.instance("returns messages after an anchor", () =>
+    withSession(({ session, sessionID }) =>
+      Effect.gen(function* () {
+        const ids = yield* fill(sessionID, 5)
+
+        const all = yield* session.messages({ sessionID, after: ids[1] })
+        expect(all.map((item) => item.info.id)).toEqual(ids.slice(2))
+
+        const limited = yield* session.messages({ sessionID, limit: 2, after: ids[1] })
+        expect(limited.map((item) => item.info.id)).toEqual(ids.slice(3))
+      }),
+    ),
+  )
+
   it.instance("fails with NotFoundError for non-existent session", () =>
     Effect.gen(function* () {
       const session = yield* SessionNs.Service

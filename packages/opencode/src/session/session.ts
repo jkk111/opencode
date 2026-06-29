@@ -450,7 +450,11 @@ export interface Interface {
   readonly setShare: (input: { sessionID: SessionID; share: Info["share"] }) => Effect.Effect<void>
   readonly setWorkspace: (input: { sessionID: SessionID; workspaceID: Info["workspaceID"] }) => Effect.Effect<void>
   readonly diff: (sessionID: SessionID) => Effect.Effect<Snapshot.FileDiff[]>
-  readonly messages: (input: { sessionID: SessionID; limit?: number }) => Effect.Effect<SessionV1.WithParts[], NotFound>
+  readonly messages: (input: {
+    sessionID: SessionID
+    limit?: number
+    after?: MessageID
+  }) => Effect.Effect<SessionV1.WithParts[], NotFound>
   readonly children: (parentID: SessionID) => Effect.Effect<Info[]>
   readonly remove: (sessionID: SessionID) => Effect.Effect<void, NotFound>
   readonly updateMessage: <T extends SessionV1.Info>(msg: T) => Effect.Effect<T>
@@ -832,7 +836,7 @@ export const layer: Layer.Layer<
 
     const messages: Interface["messages"] = Effect.fn("Session.messages")(function* (input) {
       if (input.limit) {
-        return (yield* MessageV2.page({ sessionID: input.sessionID, limit: input.limit }).pipe(
+        return (yield* MessageV2.page({ sessionID: input.sessionID, limit: input.limit, after: input.after }).pipe(
           Effect.provideService(Database.Service, database),
         )).items
       }
@@ -841,9 +845,12 @@ export const layer: Layer.Layer<
       const result = [] as SessionV1.WithParts[]
       let before: string | undefined
       while (true) {
-        const page = yield* MessageV2.page({ sessionID: input.sessionID, limit: size, before }).pipe(
-          Effect.provideService(Database.Service, database),
-        )
+        const page = yield* MessageV2.page({
+          sessionID: input.sessionID,
+          limit: size,
+          before,
+          after: input.after,
+        }).pipe(Effect.provideService(Database.Service, database))
         if (page.items.length === 0) break
         for (let i = page.items.length - 1; i >= 0; i--) {
           const item = page.items[i]

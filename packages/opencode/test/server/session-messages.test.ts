@@ -127,6 +127,22 @@ describe("session messages endpoint", () => {
   )
 
   it.instance(
+    "filters full-history responses after a message",
+    withoutWatcher(
+      Effect.gen(function* () {
+        const session = yield* sessionScoped
+        const ids = yield* fill(session.id, 5)
+
+        const res = yield* request(`/session/${session.id}/message?after=${ids[1]}`)
+        expect(res.status).toBe(200)
+        const body = yield* json<SessionV1.WithParts[]>(res)
+        expect(body.map((item) => item.info.id)).toEqual(ids.slice(2))
+      }),
+    ),
+    { git: true },
+  )
+
+  it.instance(
     "rejects invalid cursors and missing sessions",
     withoutWatcher(
       Effect.gen(function* () {
