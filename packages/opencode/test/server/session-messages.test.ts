@@ -150,6 +150,37 @@ describe("session messages endpoint", () => {
   )
 
   it.instance(
+    "pages backward within an after cursor window",
+    withoutWatcher(
+      Effect.gen(function* () {
+        const session = yield* sessionScoped
+        yield* fill(session.id, 5, (i: number) => 1_000 + i)
+
+        const checkpoint = yield* request(`/session/${session.id}/message?limit=5`)
+        expect(checkpoint.status).toBe(200)
+        const after = checkpoint.headers["x-after-cursor"]
+        expect(after).toBeTruthy()
+
+        const ids = yield* fill(session.id, 5, (i: number) => 2_000 + i)
+        const newest = yield* request(`/session/${session.id}/message?limit=2&after=${encodeURIComponent(after!)}`)
+        expect(newest.status).toBe(200)
+        const newestBody = yield* json<SessionV1.WithParts[]>(newest)
+        expect(newestBody.map((item) => item.info.id)).toEqual(ids.slice(-2))
+        const before = newest.headers["x-next-cursor"]
+        expect(before).toBeTruthy()
+
+        const older = yield* request(
+          `/session/${session.id}/message?limit=2&after=${encodeURIComponent(after!)}&before=${encodeURIComponent(before!)}`,
+        )
+        expect(older.status).toBe(200)
+        const olderBody = yield* json<SessionV1.WithParts[]>(older)
+        expect(olderBody.map((item) => item.info.id)).toEqual(ids.slice(1, 3))
+      }),
+    ),
+    { git: true },
+  )
+
+  it.instance(
     "rejects invalid cursors and missing sessions",
     withoutWatcher(
       Effect.gen(function* () {
