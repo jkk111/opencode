@@ -107,10 +107,9 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       if (ctx.query.before && ctx.query.limit === undefined) return yield* new HttpApiError.BadRequest({})
       if (ctx.query.before && ctx.query.after) return yield* new HttpApiError.BadRequest({})
-      if (ctx.query.before) {
-        const before = ctx.query.before
+      for (const input of [ctx.query.before, ctx.query.after].filter((value): value is string => value !== undefined)) {
         yield* Effect.try({
-          try: () => MessageV2.cursor.decode(before),
+          try: () => MessageV2.cursor.decode(input),
           catch: () => new HttpApiError.BadRequest({}),
         })
       }
@@ -129,19 +128,19 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           after: ctx.query.after,
         }),
       )
-      if (!page.cursor) return page.items
+      if (!page.cursor && !page.after) return page.items
 
       const request = yield* HttpServerRequest.HttpServerRequest
       // toURL() honors the Host + x-forwarded-proto headers, so the Link
       // header echoes the real origin instead of a hard-coded localhost.
       const url = Option.getOrElse(HttpServerRequest.toURL(request), () => new URL(request.url, "http://localhost"))
       url.searchParams.set("limit", ctx.query.limit.toString())
-      url.searchParams.set("before", page.cursor)
+      if (page.cursor) url.searchParams.set("before", page.cursor)
       return HttpServerResponse.jsonUnsafe(page.items, {
         headers: {
-          "Access-Control-Expose-Headers": "Link, X-Next-Cursor",
-          Link: `<${url.toString()}>; rel="next"`,
-          "X-Next-Cursor": page.cursor,
+          "Access-Control-Expose-Headers": "Link, X-After-Cursor, X-Next-Cursor",
+          ...(page.cursor ? { Link: `<${url.toString()}>; rel="next"`, "X-Next-Cursor": page.cursor } : {}),
+          ...(page.after ? { "X-After-Cursor": page.after } : {}),
         },
       })
     })

@@ -127,16 +127,23 @@ describe("session messages endpoint", () => {
   )
 
   it.instance(
-    "filters full-history responses after a message",
+    "filters full-history responses after a cursor",
     withoutWatcher(
       Effect.gen(function* () {
         const session = yield* sessionScoped
-        const ids = yield* fill(session.id, 5)
+        yield* fill(session.id, 5, (i: number) => 1_000 + i)
 
-        const res = yield* request(`/session/${session.id}/message?after=${ids[1]}`)
+        const page = yield* request(`/session/${session.id}/message?limit=5`)
+        expect(page.status).toBe(200)
+        const after = page.headers["x-after-cursor"]
+        expect(after).toBeTruthy()
+
+        const ids = yield* fill(session.id, 2, (i: number) => 2_000 + i)
+
+        const res = yield* request(`/session/${session.id}/message?after=${encodeURIComponent(after!)}`)
         expect(res.status).toBe(200)
         const body = yield* json<SessionV1.WithParts[]>(res)
-        expect(body.map((item) => item.info.id)).toEqual(ids.slice(2))
+        expect(body.map((item) => item.info.id)).toEqual(ids)
       }),
     ),
     { git: true },
@@ -150,6 +157,9 @@ describe("session messages endpoint", () => {
 
         const bad = yield* request(`/session/${session.id}/message?limit=2&before=bad`)
         expect(bad.status).toBe(400)
+
+        const badAfter = yield* request(`/session/${session.id}/message?after=bad`)
+        expect(badAfter.status).toBe(400)
 
         const miss = yield* request(`/session/ses_missing/message?limit=2`)
         expect(miss.status).toBe(404)

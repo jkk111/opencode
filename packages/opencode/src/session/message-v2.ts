@@ -429,26 +429,16 @@ export const page = Effect.fn("MessageV2.page")(function* (input: {
   sessionID: SessionID
   limit: number
   before?: string
-  after?: MessageID
+  after?: string
 }) {
   const { db } = yield* Database.Service
   const before = input.before ? cursor.decode(input.before) : undefined
-  const after = input.after
-    ? yield* db
-        .select({ id: MessageTable.id, time: MessageTable.time_created })
-        .from(MessageTable)
-        .where(and(eq(MessageTable.session_id, input.sessionID), eq(MessageTable.id, input.after)))
-        .get()
-        .pipe(Effect.orDie)
-    : undefined
-  const where =
-    input.after && !after
-      ? and(eq(MessageTable.session_id, input.sessionID), eq(MessageTable.id, input.after))
-      : and(
-          eq(MessageTable.session_id, input.sessionID),
-          before ? older(before) : undefined,
-          after ? newer(after) : undefined,
-        )
+  const after = input.after ? cursor.decode(input.after) : undefined
+  const where = and(
+    eq(MessageTable.session_id, input.sessionID),
+    before ? older(before) : undefined,
+    after ? newer(after) : undefined,
+  )
   const rows = yield* db
     .select()
     .from(MessageTable)
@@ -475,10 +465,12 @@ export const page = Effect.fn("MessageV2.page")(function* (input: {
   const slice = more ? rows.slice(0, input.limit) : rows
   const items = yield* hydrate(db, slice)
   items.reverse()
+  const head = slice[0]
   const tail = slice.at(-1)
   return {
     items,
     more,
+    after: head ? cursor.encode({ id: head.id, time: head.time_created }) : undefined,
     cursor: more && tail ? cursor.encode({ id: tail.id, time: tail.time_created }) : undefined,
   }
 })

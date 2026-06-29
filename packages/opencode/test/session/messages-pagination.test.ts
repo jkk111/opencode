@@ -567,11 +567,13 @@ describe("Session.messages", () => {
     withSession(({ session, sessionID }) =>
       Effect.gen(function* () {
         const ids = yield* fill(sessionID, 5)
+        const firstPage = yield* MessageV2.page({ sessionID, limit: 3 })
+        const secondPage = yield* MessageV2.page({ sessionID, limit: 3, before: firstPage.cursor })
 
-        const all = yield* session.messages({ sessionID, after: ids[1] })
+        const all = yield* session.messages({ sessionID, after: secondPage.after })
         expect(all.map((item) => item.info.id)).toEqual(ids.slice(2))
 
-        const limited = yield* session.messages({ sessionID, limit: 2, after: ids[1] })
+        const limited = yield* session.messages({ sessionID, limit: 2, after: secondPage.after })
         expect(limited.map((item) => item.info.id)).toEqual(ids.slice(3))
       }),
     ),

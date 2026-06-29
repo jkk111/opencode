@@ -453,7 +453,7 @@ export interface Interface {
   readonly messages: (input: {
     sessionID: SessionID
     limit?: number
-    after?: MessageID
+    after?: string
   }) => Effect.Effect<SessionV1.WithParts[], NotFound>
   readonly children: (parentID: SessionID) => Effect.Effect<Info[]>
   readonly remove: (sessionID: SessionID) => Effect.Effect<void, NotFound>

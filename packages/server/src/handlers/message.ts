@@ -39,13 +39,17 @@ export const MessageHandler = HttpApiBuilder.group(Api, "server.message", (handl
           try: () => (ctx.query.cursor ? cursor.decode(ctx.query.cursor) : undefined),
           catch: () => new InvalidCursorError({ message: "Invalid cursor" }),
         })
+        const after = yield* Effect.try({
+          try: () => (ctx.query.after ? cursor.decode(ctx.query.after) : undefined),
+          catch: () => new InvalidCursorError({ message: "Invalid cursor" }),
+        })
         const order = decoded?.order ?? ctx.query.order ?? "desc"
         const messages = yield* session
           .messages({
             sessionID: ctx.params.sessionID,
             limit: ctx.query.limit ?? DefaultMessagesLimit,
             order,
-            after: ctx.query.after,
+            after: after?.id,
             cursor: decoded ? { id: decoded.id, direction: decoded.direction } : undefined,
           })
           .pipe(
